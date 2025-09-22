@@ -24,3 +24,53 @@ docker pull image [application] 뒤의 @를 통해 다이제스트를 붙이면 
 
 #### dockerfile 작성
 - 이미지는 여러개의 레이어로 구성되어있다. 그래서 이미지를 만드는 것은 여러개의 레이어를 쌓아올리는 과정과 같다. dockerfile은 레이어를 어떻게 쌓아올릴것인지에 대해 계획을 작성하는 파일이다. 정해진 문법에 따라 dockerfile을 작성하면 docker엔진이 순서대로 쌓아 파일을 만든다. 
+
+###### node를 설치한다. (애플리케이션을 실행하는데 필요한 환경을 준비, 가장 밑에 깔리는 layer 준비), ARG 커맨드를 통해 버전을 정의해주면 도커파일 내에서 일일이 수정해줄 필요 없다.
+
+###### 소스코드를 다운로드한다.
+
+###### 소스코드의 최상위 디렉토리로 이동한다.
+
+###### 소스코드를 실행할 때 필요한 파일을 다운로드한다. (npm ci)
+
+###### 소스코드를 빌드한다. (npm run build)
+
+###### 환경변수를 정의한다. (PORT)
+
+###### 서버를 실행한다. (npm run start)
+
+#### node.js를 기준으로 작성된 dockerfile
+```
+# node를 설치한다. (애플리케이션을 실행하는데 필요한 환경을 준비, 가장 밑에 깔리는 layer 준비)
+#FROM 베이스 이미지
+ARG NODE_VERSION
+FROM node:${NODE_VERSION}
+
+
+# 소스코드를 다운로드한다.
+# COPY [복사할 경로] [붙여넣기할 경로]
+COPY . /app 
+# 현재 디렉토리의 내용을 app 디렉토리로 복사한다.
+# 상대경로의 기준이 build context(도커파일이 있는 위치)이다.
+
+
+# 소스코드의 최상위 디렉토리로 이동한다.
+WORKDIR /app
+
+# 소스코드를 실행할 때 필요한 파일을 다운로드한다. (npm ci)
+RUN npm ci
+
+# 소스코드를 빌드한다. (npm run build)
+RUN npm run build
+
+# RUN npm ci && npm run build 라는 하나의 명령어로 작성할 경우
+# 레이어가 줄어들어 훨씬 좋다.
+
+# 환경변수를 정의한다. (PORT)
+ENV PORT==3000
+
+# 서버를 실행한다. (npm run start)
+ENTRYPOINT ["npm", "run", "start"]
+# ENTRYPOINT를 정의할때는 조금 특이한 형태로 정의한다.
+```
+
