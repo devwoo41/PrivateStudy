@@ -73,4 +73,5 @@ ENV PORT==3000
 ENTRYPOINT ["npm", "run", "start"]
 # ENTRYPOINT를 정의할때는 조금 특이한 형태로 정의한다.
 ```
-
+#### 이미지 빌드/배포
+- dockerfile은 설계도면이고 build context는 설계할 위치이다. docker buildx build라는 명령어를 통해 option과 build context를 파라미터로 받는다. '-t'옵션을 통해 빌드할 이미지의 레포지토리와 태그를 지정하는 위치이다. 한번에 여러개의 태그를 지정하고 싶으면 태그를 여러개 지정하면 된다. 태그를 지정하지 않으면 태그가 없는 이미지가 된다.build arg 옵션으로 arg 명령어를 통해 node_version이라는 변수에 버전을 지정해 줄 수 있다. f옵션은 사용할 도커파일의 경로를 설정해주는 옵션이다. pull 옵션은 베이스 이미지가 로컬에 저장되어 있어도 빌드할때마다 다시 강제로 다운로드 하기위한 옵션이다. 
