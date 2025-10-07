@@ -1,2 +1,5 @@
 #### 기존에 연결된 repository와 연결을 끊는 명령어
 - git remote remove origin 
+
+#### [특정시점]의 커밋으로 되돌리고 싶을때 사용하는 명령어
+- git reset --hard <특정시점>
