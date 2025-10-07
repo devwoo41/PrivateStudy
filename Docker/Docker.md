@@ -75,3 +75,56 @@ ENTRYPOINT ["npm", "run", "start"]
 ```
 #### 이미지 빌드/배포
 - dockerfile은 설계도면이고 build context는 설계할 위치이다. docker buildx build라는 명령어를 통해 option과 build context를 파라미터로 받는다. '-t'옵션을 통해 빌드할 이미지의 레포지토리와 태그를 지정하는 위치이다. 한번에 여러개의 태그를 지정하고 싶으면 태그를 여러개 지정하면 된다. 태그를 지정하지 않으면 태그가 없는 이미지가 된다.build arg 옵션으로 arg 명령어를 통해 node_version이라는 변수에 버전을 지정해 줄 수 있다. f옵션은 사용할 도커파일의 경로를 설정해주는 옵션이다. pull 옵션은 베이스 이미지가 로컬에 저장되어 있어도 빌드할때마다 다시 강제로 다운로드 하기위한 옵션이다. 
+
+#### Docker 이미지 배포
+-   docker buildx build \
+    > -t [사용자명]/mbti[repo명]:embedded-db[태그] \
+    > -t devwoo41/mbti[repo명] [태그가 없으므로 latest] \  '' 두개의 태그 (embedded-db, latest) 모두에 등록한다는 의미이다.           
+    > --build-arg NODE_VERSION=20.15.1 \
+    > -f./Dockerfile [사용할 도커파일의 경로 지정] \
+    > --pull \
+    > .
+- docker image push [사용자이름]/[repo]:[tag], 와 같이 배포를 하면 성공적으로 push가 되고 docker hub에서 확인해 볼 수 있다.
+
+#### 컨테이너 실행&관리
+- 컨테이너를 실행하거나 관리하는 명령어는 docker container로 시작한다. 'docker container run [옵션] [이미지]' 라는 명령어를 통해 컨테이너를 실행한다. 
+``` 
+docker container run \
+--name mbti \  
+-e PORT=3000 \
+--env-file .docker.env \
+--rm \
+-d \
+[사용자 이름]/[repo명]:[태그]
+```
+- name 옵션을 통해 컨테이너 명을 지정해 줄 수 있다. 다음으로 e 옵션은 환경변수를 정의하는 옵션이다. env file 옵션으로 환경변수를 .docker.env 라는 파일로 정리해서 설정할 수 있다. rm옵션은 컨테이너를 종료하고 자동으로 삭제까지 해 줄수 있는 옵션이다. 도커에서는 일반적으로 종료한다고 바로 삭제되지 않고 로그를 확인할 수 있게 컨테이너 정보가 남아있어 rm 옵션을 통해 자동으로 삭제할 수 있게 해 주는 옵션이다. d 옵션은 컨테이너를 백그라운드로 실행하게 해준다. 
+- 현재 실행중인 컨테이너는 docker container ls를 통해 확인할 수 있다. 만약 컨테이너 내부를 확인하고 싶으면 'docker container exec [옵션] [컨테이너] ls /app' 을 통해서 확인 할 수 있다.
+- 컨테이너 내부를 shell을 통해서 접속할 수 있다. 'docker container exec -it [컨테이너 이름] bash'를 통해 쉘창으로 컨테이너 내부를 터미널을 통해 접속 할 수 있다. 
+- 'docker container logs -f mbti'라는 명령어를 통해 로그를 확인할 수 있다. docker 내부에서 curl 명령어를 통해 로그를 확인 할 수 있다.
+- docker container exec mbti \
+- > curl localhost:3000/api/healthcheck
+
+- 이 명령어를 실행한 경우 log창에 요청이 떠야 한다.
+
+- docker container stop [컨테이너 이름]
+- docker container ls -a를 통해 모든 컨테이너를 확인해 종료되었는지 확인할 수 있다.
+- docker container prune 명령어를 통해 현재 실행중이지 않은 모든 컨테이너를 삭제할 수 있다.
+
+#### 네트워크 1
+- 컨테이너는 격리된 격량 프로세스이다. 컨테이너 입장에서는 browser에서 접속하는 것도 외부이기에 격리되어 통신이 불가능하다. docker network를 통해 접속/통신할 수 있다. docker network에서는 통신할 수 있는 방법이 두가지가 있는데, 하나는 컨테이너의 네트워크를 통해 통신하는 것이고, 두번째는 호스트의 네트워크를 통해 통신하는 방식이다. docker network도 명령어를 통해 관리한다.
+- docker network라는 명령어로 시작한다.
+- 'docker network ls' 라는 명령어를 통해 네트워크 종류를 확인할 수 있다. docker network에는 기본으로 제공하는 bridge, host, null의 network가 있는데, 이런 network의 종류를 드라이버라고 한다. bridge 드라이버가 일반적으로 가장 많이 사용된다.
+- 'docker network create [네트워크명]' 이라는 명령어를 통해 bridge 드라이버를 이용한 네트워크를 생성할 수 있다. 이전 container의 명령어와 같이 rm, prune 명령어를 통해 네트워크를 삭제할 수 있다. 'docker network rm [네트워크명]' 을 통해 네트워크를 삭제할 수 있다.
+- 'mynetwork'라는 네트워크를 만든 경우, 컨테이너를 run할 때, 만든 네트워크로 연결하고 싶을때에는 앞선 docker container run 명령어에 --network를 통해 네트워크 옵션을 추가해주면 된다.
+``` 
+docker container run \
+--name mbti \  
+-e PORT=3000 \
+--env-file .docker.env \
+--rm \
+-d \
+--network mynetwork \
+[사용자 이름]/[repo명]:[태그]
+```
+- 컨테이너에 연결된 네트워크는 'docker container inspect [컨테이너명] '라는 명령어를 통해 확인할 수 있다.
+
