@@ -140,5 +140,79 @@ docker container run \
 - 내 작업 디렉토리 내부에 바인드 디렉토리를 만들면 즉각적으로 확인할 수 있다.
 
 #### Docker Compose
-- 이미지 빌드, 컨테이너 실행, 볼륨과 네트워크 생성 등 실행,작성해야 할 것들이 너무 많다. 이러한 문제를 해결하기 위해 Docker Compose가 있다. Docker Compose는 여러 컨테이너를 단순히 관리할 수 있는데, 이미지 빌드, 컨테이너 실행, 볼륨과 네트워크 생성등을 단 하나의 파일로 관리할 수 있다. 그리고 이 compose 파일은 계층 관리에 에 적합한 yaml 파일로 생성된다. 
-- 'docker-compose.yaml' 내부에 name 속성으로 프로젝트 이름을 지정해 줄 수 있다. 다음으로 서비스 속성은 컨테이너에 대한 정보를 정의한다. 따라서 네임과 달리 반드시 정의해주어야 한다. 예를들어 app과 db라는 두개의 컨테이너가 있는 경우, services: 하단에 app: 과 db: 이런식으로 추가해 준다.
+- 이미지 빌드, 컨테이너 실행, 볼륨과 네트워크 생성 등 실행,작성해야 할 것들이 너무 많다. 이러한 문제를 해결하기 위해 Docker Compose가 있다. Docker Compose는 여러 컨테이너를 단순히 관리할 수 있는데, 이미지 빌드, 컨테이너 실행, 볼륨과 네트워크 생성등을 단 하나의 파일로 관리할 수 있다. 그리고 이 compose 파일은 계층 관리에 적합한 yaml 파일로 생성된다. 
+- 'docker-compose.yaml' 내부에 name 속성으로 프로젝트 이름을 지정해 줄 수 있다. 다음으로 서비스 속성(애플리케이션)은 컨테이너에 대한 정보를 정의한다. 따라서 네임과 달리 반드시 정의해주어야 한다. 예를들어 app과 db라는 두개의 컨테이너가 있는 경우, services: 하단에 app: 과 db: 이런식으로 추가해 준다. yaml에서는 들여쓰기로 하위속성을 정의해준다. 
+- 결론적으로, docker compose에서 네트워크, 포트, 볼륨, env, 앱 등 많은 것들을 설정해주고 docker compose up 등을 통해서 docker-compose.yaml에서 읽어온 후, 명세에 맞게 container와 네트워크등 환경을 실행해준다. 그리고 docker compose down -v를 통해서 실행중인 컨테이너, 네트워크, 볼륨 등등 compose로 생성되었던 것들을 모두 삭제해준다. 
+#### 예시 docker-compose.yaml
+```
+name: mbti
+services:
+  app:
+    image: devwoo41/mbti:mysql
+    build:
+      args:
+        - NODE_VERSION=20.15.1
+      dockerfile: ./Dockerfile
+      pull: true
+      context: .
+    container_name: app
+    environment:
+      - PORT=3000
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_NAME=db_mbti
+      - DB_USERNAME=user_mbti
+      - DB_PASSWORD=pw_mbti
+    networks:
+      - mbti-net
+    ports:
+      - 4000:3000
+  db:
+    image: mysql:8.3.0
+    container_name: db
+    environment:
+      - MYSQL_ROOT_PASSWORD=root1234
+      - MYSQL_DATABASE=db_mbti
+      - MYSQL_USER=user_mbti
+      - MYSQL_PASSWORD=pw_mbti
+    networks:
+      - mbti-net
+    volumes:
+      - mbti-vol:/var/lib/mysql
+networks:
+  mbti-net:
+    name: mbti-net
+volumes:
+  mbti-vol:
+    name: mbti-vol
+```
+
+#### docker compose의 유용한 기능으로 서비스 간 의존관계 설정하기
+- 앞서 작성한 docker compose의 app 서비스는 db 서비스가 없으면 동작할 수 없고 이런 관계를 app 서비스가 db 서비스에 의존한다고 하고, 이런 서비스의 경우에는 구동순서를 제어해야 한다. 시작할때는 db 서비스가 먼저 시작하고 app 서비스가 후에 시작하고, 종료될 때는 app 서비스가 먼저 종료되고 db 서비스가 종료되는 식으로 말이다. docker compose 에서는 의존관계를 정리해주는 depends_on을 통해서 의존관계를 정리할 수 있다.
+- 만약 compose 파일에 depneds_on을 지정해 주지 않을 경우, 서비스의 실행 순서는 무작위이다. 
+- 그러나 app 서비스의 하위에 depends_on: \  -db 라고 정의를 해주고 compose up을 실행하는 경우, 항상 db가 먼저 실행되고 app이 실행 된다.
+- 유의할 점은, depends_on은 컨테이너 상태를 기준으로 실행된다. 이 때문에, 컨테이너 실행에서 문제가 될 수 있다. 예를 들어서, db 컨테이너가 실행이 되고, mysql이 정상적으로 실행이 되지 않을 경우, app 컨테이너는 db 컨테이너 실행을 기준으로 실행이 되기 때문에, 정상적으로 실행이 된다. 만약, db 실행이 정상적으로 실행이 모두 되고서, app 컨테이너도 그에 따라 실행이 되게 하려면 *condition* 과 *healthcheck* 속성 등을 추가하면 된다. 즉, depends_on 하나만으로는 의존성을 완벽히 관리하기는 어렵다는 것이다. 
+
+#### RUN, CMD, ENTRYPOINT의 차이
+- RUN 명령어의 경우, 이미지 빌드시에 실행이 된다. CMD와 ENTRYPOINT의 경우, 컨테이너 실행시에 실행이 되는데, ENTRYPOINT가 CMD 보다 조금 더 강하게 작용된다. 한마디로 CMD의 경우 CMD["npm","run","start"]가 작성되어 있지만, 컨테이너 실행시에 docker container run [컨테이너] bash를 할 경우, npm run start는 무시되고 bash가 실행이 되지만, ENTRYPOINT로 실행한 것은 고정된 명령으로 무시되지 않는다. 이러한 연유로 ENTRYPOINT로는 항상 실행될 기본 명령어 ex. ["npm","run"] 등이 작성되고, CMD로는 ["start"] 등을 집어넣는 등, CMD는 ENTRYPOINT의 파라미터로서 사용된다. CMD가 조금 더 유연하기 때문이다.
+
+#### ARG와 ENV
+- ARG의 경우, 이미지를 빌드할 때에 버전이나 변수들을 지정해주고 없어진다. ENV의 경우에는, 컨테이너 실행을 할 때에 환경변수와 같이 동작을 하는데, 예로써 쉽게말해, 만약 빌드를 할 당시에 ARG PORT=3000으로 지정해주고 컨테이너를 실행한뒤에 echo $PORT를 할경우, 아무것도 출력되지 않는다. 따라서 실무에서는 ARG로 빌드시 값을 받고 -> ENV로 넘겨주는 패턴을 자주 쓴다. 
+```
+ARG NODE_VERSION=20.15.1
+FROM node:${NODE_VERSION}
+
+ARG APP_PORT=3000
+ENV PORT=${APP_PORT}
+
+RUN echo "Build-time PORT: ${APP_PORT}"
+CMD ["npm", "run", "start"]
+```
+
+#### 최적화
+```
+Docker 이미지를 잘 최적화하려면
+① 레이어 캐시를 활용해 빌드 시간을 줄이고,
+② 멀티스테이지 빌드로 이미지 크기를 줄이고,
+③ 플랫폼 옵션과 메타데이터로 가용성과 재사용성을 높이면 된다. 
+```
